@@ -1,0 +1,1158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3D Bridge Model – Structural Load Transfer Viewer</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Inter & Space Grotesk -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" />
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <!-- Three.js & OrbitControls (r128) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: #0f172a;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    h1, h2, h3, .font-display {
+      font-family: 'Space Grotesk', sans-serif;
+    }
+    #canvas-container {
+      width: 100vw;
+      height: 100vh;
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      outline: none;
+    }
+    /* Custom subtle glassmorphism panels */
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.82);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+    }
+    .glass-light {
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(203, 213, 225, 0.8);
+      box-shadow: 0 12px 32px rgba(15, 23, 42, 0.14);
+    }
+    /* Smooth transition for UI toggles */
+    .btn-pill {
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .btn-pill:active {
+      transform: scale(0.96);
+    }
+  </style>
+</head>
+<body class="text-slate-100">
+
+  <!-- 3D Viewport Container -->
+  <div id="canvas-container"></div>
+
+  <!-- Top Header & Mode Switcher -->
+  <header class="fixed top-3 left-3 right-3 sm:top-5 sm:left-5 sm:right-5 z-20 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 pointer-events-none">
+    <!-- Title Badge -->
+    <div class="glass-panel rounded-2xl px-4 py-3 sm:px-5 sm:py-3.5 pointer-events-auto max-w-xl">
+      <div class="flex items-center gap-2.5">
+        <span class="inline-flex items-center justify-center w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30">
+          <i class="fa-solid fa-bridge text-sm"></i>
+        </span>
+        <div>
+          <span class="text-[11px] font-bold uppercase tracking-widest text-amber-400 block leading-none mb-1">
+            Interactive 3D Structural Replica
+          </span>
+          <h1 class="text-base sm:text-lg font-bold text-white leading-tight">
+            Bridge Model: Tension Line &amp; Inclined Stick Supports
+          </h1>
+        </div>
+      </div>
+    </div>
+
+    <!-- Visualization Mode Controls -->
+    <div class="flex flex-wrap items-center gap-2 pointer-events-auto">
+      <div class="glass-panel rounded-2xl p-1.5 flex items-center gap-1">
+        <button id="btn-mode-realistic" class="btn-pill px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-2 bg-amber-500 text-slate-950 shadow">
+          <i class="fa-solid fa-cube"></i>
+          <span>Realistic Model</span>
+        </button>
+        <button id="btn-mode-force" class="btn-pill px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-2 text-slate-300 hover:text-white hover:bg-slate-800/70">
+          <i class="fa-solid fa-arrows-up-down-left-right"></i>
+          <span>Load-Transfer Mode</span>
+        </button>
+      </div>
+
+      <!-- Gravity Load Simulation Slider (visible in Force Mode or anytime) -->
+      <div class="glass-panel rounded-2xl px-3.5 py-2 flex items-center gap-3">
+        <label for="load-slider" class="text-xs font-semibold text-slate-300 whitespace-nowrap flex items-center gap-1.5">
+          <i class="fa-solid fa-weight-hanging text-amber-400"></i>
+          <span>Deck Load:</span>
+        </label>
+        <input id="load-slider" type="range" min="0" max="100" value="45" class="w-20 sm:w-24 accent-amber-500 cursor-pointer" />
+        <span id="load-val" class="text-xs font-mono font-bold text-amber-400 w-9 text-right">45%</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Left / Floating Force Legend (Shown in Load-Transfer Mode) -->
+  <aside id="force-legend" class="fixed top-36 sm:top-24 left-3 sm:left-5 z-20 glass-panel rounded-2xl p-4 w-64 sm:w-72 transition-all duration-300 opacity-0 pointer-events-none -translate-x-4">
+    <div class="flex items-center justify-between mb-2.5 pb-2 border-b border-slate-700/80">
+      <h2 class="text-xs font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
+        <i class="fa-solid fa-diagram-project text-amber-400"></i>
+        <span>Force Action Legend</span>
+      </h2>
+      <span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 font-medium">No Cable</span>
+    </div>
+    <ul class="space-y-2.5 text-xs">
+      <li class="flex items-start gap-2.5">
+        <span class="w-3.5 h-3.5 rounded-md bg-blue-500 mt-0.5 shrink-0 shadow shadow-blue-500/40"></span>
+        <div>
+          <p class="font-semibold text-blue-300">Tension (Top Line, Hangers &amp; Stays)</p>
+          <p class="text-slate-400 text-[11px] leading-snug">Taut white threads carrying axial tensile pull.</p>
+        </div>
+      </li>
+      <li class="flex items-start gap-2.5">
+        <span class="w-3.5 h-3.5 rounded-md bg-emerald-500 mt-0.5 shrink-0 shadow shadow-emerald-500/40"></span>
+        <div>
+          <p class="font-semibold text-emerald-300">Compression / Bending (Inclined Sticks)</p>
+          <p class="text-slate-400 text-[11px] leading-snug">Discrete angled struts supporting the tension line.</p>
+        </div>
+      </li>
+      <li class="flex items-start gap-2.5">
+        <span class="w-3.5 h-3.5 rounded-md bg-amber-500 mt-0.5 shrink-0 shadow shadow-amber-500/40"></span>
+        <div>
+          <p class="font-semibold text-amber-300">Tower Compression &amp; Reactions</p>
+          <p class="text-slate-400 text-[11px] leading-snug">Braced tower columns transfer forces to base pads.</p>
+        </div>
+      </li>
+      <li class="flex items-start gap-2.5">
+        <span class="w-3.5 h-3.5 rounded-md bg-purple-400 mt-0.5 shrink-0 shadow shadow-purple-400/40"></span>
+        <div>
+          <p class="font-semibold text-purple-300">Bridge Deck (Bending &amp; Shear)</p>
+          <p class="text-slate-400 text-[11px] leading-snug">Carries gravity load between vertical hangers.</p>
+        </div>
+      </li>
+    </ul>
+  </aside>
+
+  <!-- Right / Floating Interactive Member Inspector Card -->
+  <aside id="inspector-card" class="fixed bottom-20 sm:bottom-24 right-3 sm:right-5 z-20 glass-panel rounded-2xl p-4 sm:p-5 w-72 sm:w-80 transition-all duration-300">
+    <div class="flex items-start justify-between gap-2 mb-2">
+      <div>
+        <span id="insp-badge" class="inline-block text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 mb-1.5">
+          Interactive Inspector
+        </span>
+        <h3 id="insp-title" class="text-base sm:text-lg font-bold text-white leading-snug">
+          Click Any Bridge Member
+        </h3>
+      </div>
+      <button id="btn-clear-selection" title="Clear Selection" class="hidden w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center text-xs">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+    <p id="insp-action" class="text-xs font-semibold text-amber-400 mb-2">
+      Action: Hover or tap a component in 3D
+    </p>
+    <p id="insp-desc" class="text-xs sm:text-sm text-slate-300 leading-relaxed">
+      Drag to rotate 360°, scroll to zoom, or right-click drag to pan. Click on the deck, vertical hangers, top tension line, inclined sticks, towers, or outer anchorage stays to inspect their structural role.
+    </p>
+  </aside>
+
+  <!-- Bottom Camera Angle Presets & Quick Controls -->
+  <footer class="fixed bottom-3 left-3 right-3 sm:bottom-5 sm:left-5 sm:right-5 z-20 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
+    <!-- Camera View Buttons -->
+    <div class="glass-panel rounded-2xl p-1.5 flex flex-wrap items-center gap-1 pointer-events-auto">
+      <button data-view="perspective" class="cam-btn btn-pill px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-semibold bg-slate-800 text-amber-400 border border-amber-500/40 flex items-center gap-1.5">
+        <i class="fa-solid fa-cubes"></i>
+        <span>3D Perspective</span>
+      </button>
+      <button data-view="side" class="cam-btn btn-pill px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800/70 flex items-center gap-1.5">
+        <i class="fa-solid fa-arrows-left-right"></i>
+        <span>Side Elevation</span>
+      </button>
+      <button data-view="top" class="cam-btn btn-pill px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800/70 flex items-center gap-1.5">
+        <i class="fa-solid fa-arrow-down-short-wide"></i>
+        <span>Top Plan</span>
+      </button>
+      <button data-view="tower" class="cam-btn btn-pill px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800/70 flex items-center gap-1.5">
+        <i class="fa-solid fa-tower-observation"></i>
+        <span>End Tower</span>
+      </button>
+      <button data-view="joint" class="cam-btn btn-pill px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800/70 flex items-center gap-1.5">
+        <i class="fa-solid fa-magnifying-glass-plus"></i>
+        <span>Apex Joint</span>
+      </button>
+    </div>
+
+    <!-- Auto-Rotate & Reset Controls -->
+    <div class="glass-panel rounded-2xl p-1.5 flex items-center gap-1 pointer-events-auto">
+      <button id="btn-autorotate" class="btn-pill px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800/70 flex items-center gap-1.5">
+        <i class="fa-solid fa-rotate"></i>
+        <span>Auto-Orbit</span>
+      </button>
+      <button id="btn-reset" class="btn-pill px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800/70 flex items-center gap-1.5" title="Reset Camera">
+        <i class="fa-solid fa-house"></i>
+        <span class="hidden sm:inline">Reset</span>
+      </button>
+    </div>
+  </footer>
+
+  <script>
+    // =========================================================================
+    // 1. STRUCTURAL METADATA & DESCRIPTIONS FOR INTERACTIVE INSPECTOR
+    // =========================================================================
+    const MEMBER_INFO = {
+      deck: {
+        title: "Continuous White Bridge Deck",
+        badge: "Primary Loaded Element",
+        action: "Structural Action: Bending & Shear",
+        desc: "A narrow white cardboard/foam-board strip running between the two towers at deck-crossbar height, supported on longitudinal edge stringers and cross-ties. Develops internal bending and shear under load.",
+        forceColor: 0xa855f7, // Purple
+        realisticColor: 0xf8fafc
+      },
+      hangers: {
+        title: "Vertical Thread Hangers & Plan Lacing",
+        badge: "Tensile Suspender & Bracing Web",
+        action: "Structural Action: Axial Tension & Lateral Stability",
+        desc: "Five vertical white thread hanger stations per half-span drop straight down to the deck edges, paired with overhead horizontal cross-ties and diagonal zigzag plan lacing between the inclined sticks to prevent lateral buckling.",
+        forceColor: 0x3b82f6, // Blue (Tension)
+        realisticColor: 0xf8fafc
+      },
+      tensionLine: {
+        title: "Top Tension Thread Line (Shallow V)",
+        badge: "Upper Tensile Chord",
+        action: "Structural Action: Axial Tension (Inward & Upward Pull)",
+        desc: "White tension threads stretching from the top caps of both towers down to the central wooden apex crossbar, pulling inward and upward on the apex joint (distinct from a parabolic suspension cable).",
+        forceColor: 0x2563eb, // Royal Blue (Tension)
+        realisticColor: 0xf8fafc
+      },
+      inclinedSticks: {
+        title: "Inboard Inclined Support Sticks (Rakers)",
+        badge: "Key Defining Feature",
+        action: "Structural Action: Axial Compression & Bending",
+        desc: "Paired wooden inclined sticks rising from lower tower nodes up to meet at the central horizontal wooden apex crossbar with heavy hot-glue joints, reinforced by secondary lower haunch braces beneath them.",
+        forceColor: 0x10b981, // Emerald Green (Compression/Bending)
+        realisticColor: 0xd9b382
+      },
+      towers: {
+        title: "End Tower Portal Frames",
+        badge: "Vertical Support Columns",
+        action: "Structural Action: Axial Compression & Base Reactions",
+        desc: "Each tower features paired vertical wooden columns (front and back) wrapped with dense white zigzag thread lacing, four horizontal crossbars (deck, two intermediate, and top cap), and diagonal wooden portal X-bracing.",
+        forceColor: 0xf59e0b, // Amber Orange (Compression & Reactions)
+        realisticColor: 0xd4aa73
+      },
+      backStays: {
+        title: "Outboard Anchor Props & Stays",
+        badge: "Anchorage & Overturning Resistance",
+        action: "Structural Action: Tension in Stays / Compression in Props",
+        desc: "Paired inclined wooden anchor struts extending outward from the mid-tower node to the tabletop base (wrapped with white thread lacing), horizontal deck-level wooden tie sticks, and upper white tension anchor threads from tower top to base.",
+        forceColor: 0x38bdf8, // Sky Blue (Tension)
+        realisticColor: 0xe2e8f0
+      }
+    };
+
+    // =========================================================================
+    // 2. GLOBAL THREE.JS SCENE & INTERACTION STATE
+    // =========================================================================
+    let scene, camera, renderer, controls;
+    let bridgeGroup, forceArrowsGroup;
+    let deckMesh, deckBaseVertices;
+    const categoryMeshes = {
+      deck: [],
+      hangers: [],
+      tensionLine: [],
+      inclinedSticks: [],
+      towers: [],
+      backStays: []
+    };
+    const dynamicHangers = [];
+    const dynamicArrows = [];
+
+    let isForceMode = false;
+    let loadFactor = 0.45;
+    let selectedCategory = null;
+    let hoveredCategory = null;
+    let cameraAnim = null;
+
+    function initScene() {
+      const container = document.getElementById('canvas-container');
+
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x0f172a);
+      scene.fog = new THREE.FogExp2(0x0f172a, 0.016);
+
+      camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 150);
+      camera.position.set(14.5, 8.2, 16.5);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      container.appendChild(renderer.domElement);
+
+      controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.target.set(0, 3.1, 0);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.06;
+      controls.maxPolarAngle = Math.PI * 0.49;
+      controls.minDistance = 4;
+      controls.maxDistance = 42;
+
+      // Studio & Lab Lighting
+      const ambientLight = new THREE.AmbientLight(0xf8fafc, 0.65);
+      scene.add(ambientLight);
+
+      const keyLight = new THREE.DirectionalLight(0xfffbeb, 0.95);
+      keyLight.position.set(14, 22, 16);
+      keyLight.castShadow = true;
+      keyLight.shadow.mapSize.width = 2048;
+      keyLight.shadow.mapSize.height = 2048;
+      keyLight.shadow.camera.near = 2;
+      keyLight.shadow.camera.far = 55;
+      const d = 16;
+      keyLight.shadow.camera.left = -d;
+      keyLight.shadow.camera.right = d;
+      keyLight.shadow.camera.top = d;
+      keyLight.shadow.camera.bottom = -d;
+      keyLight.shadow.bias = -0.0005;
+      scene.add(keyLight);
+
+      const fillLight = new THREE.DirectionalLight(0x93c5fd, 0.4);
+      fillLight.position.set(-14, 12, -12);
+      scene.add(fillLight);
+
+      bridgeGroup = new THREE.Group();
+      scene.add(bridgeGroup);
+
+      forceArrowsGroup = new THREE.Group();
+      forceArrowsGroup.visible = false;
+      scene.add(forceArrowsGroup);
+
+      buildEnvironment();
+      buildBridgeModel();
+      buildForceArrows();
+      setupInteraction();
+      setupUI();
+
+      window.addEventListener('resize', onWindowResize);
+    }
+
+    // =========================================================================
+    // 3. ENVIRONMENT: LAB TABLETOP & SUBTLE ARCHITECTURAL GRID
+    // =========================================================================
+    function buildEnvironment() {
+      // Wooden-toned engineering lab table surface matching photo context
+      const tableGeo = new THREE.PlaneGeometry(75, 45);
+      const tableMat = new THREE.MeshStandardMaterial({
+        color: 0x1e293b,
+        roughness: 0.78,
+        metalness: 0.08
+      });
+      const table = new THREE.Mesh(tableGeo, tableMat);
+      table.rotation.x = -Math.PI / 2;
+      table.position.y = 0;
+      table.receiveShadow = true;
+      scene.add(table);
+
+      // Subtle architectural measurement grid on table
+      const grid = new THREE.GridHelper(44, 44, 0x334155, 0x1e293b);
+      grid.position.y = 0.01;
+      scene.add(grid);
+
+      // Base anchor pads where paired tower columns and outer stays rest
+      const padMat = new THREE.MeshStandardMaterial({
+        color: 0x475569,
+        roughness: 0.5,
+        metalness: 0.2
+      });
+      const padPositions = [
+        [-7.2, -1.15], [-7.2, 1.15], // Left tower paired columns
+        [7.2, -1.15],  [7.2, 1.15],  // Right tower paired columns
+        [-11.6, -1.15], [-11.6, 1.15], // Left outboard anchor bases
+        [11.6, -1.15],  [11.6, 1.15]   // Right outboard anchor bases
+      ];
+      padPositions.forEach(([px, pz]) => {
+        const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.3, 0.08, 16), padMat);
+        pad.position.set(px, 0.04, pz);
+        pad.receiveShadow = true;
+        scene.add(pad);
+      });
+    }
+
+    // =========================================================================
+    // 4. GEOMETRY & MATERIAL HELPERS (BAMBOO STICKS, THREADS & HOT GLUE)
+    // =========================================================================
+    function createBambooMaterial(hexColor) {
+      return new THREE.MeshStandardMaterial({
+        color: hexColor,
+        roughness: 0.58,
+        metalness: 0.04
+      });
+    }
+
+    function createThreadMaterial(hexColor) {
+      return new THREE.MeshStandardMaterial({
+        color: hexColor,
+        roughness: 0.75,
+        metalness: 0.02
+      });
+    }
+
+    function addStrutBetween(p1, p2, radius, baseMat, category) {
+      const dir = new THREE.Vector3().subVectors(p2, p1);
+      const len = dir.length();
+      const geo = new THREE.CylinderGeometry(radius, radius, len, 10);
+      // Clone material per mesh so individual category highlighting works cleanly
+      const mat = baseMat.clone();
+      const mesh = new THREE.Mesh(geo, mat);
+
+      mesh.position.copy(p1).add(p2).multiplyScalar(0.5);
+      mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      mesh.userData.category = category;
+
+      bridgeGroup.add(mesh);
+      if (category && categoryMeshes[category]) {
+        categoryMeshes[category].push(mesh);
+      }
+      return mesh;
+    }
+
+    function addZigzagThreadWrap(pStart, pEnd, segments, halfOffset, baseMat, category) {
+      const axis = new THREE.Vector3().subVectors(pEnd, pStart);
+      for (let i = 0; i < segments; i++) {
+        const t1 = i / segments;
+        const t2 = (i + 1) / segments;
+        const sign1 = i % 2 === 0 ? -1 : 1;
+        const sign2 = -sign1;
+
+        const ptA = new THREE.Vector3().copy(pStart).addScaledVector(axis, t1);
+        ptA.x += sign1 * halfOffset;
+
+        const ptB = new THREE.Vector3().copy(pStart).addScaledVector(axis, t2);
+        ptB.x += sign2 * halfOffset;
+
+        addStrutBetween(ptA, ptB, 0.014, baseMat, category);
+      }
+    }
+
+    function addHotGlueJoint(pos, scaleFactor = 1.0) {
+      const glueMat = new THREE.MeshStandardMaterial({
+        color: 0xf1f5f9,
+        roughness: 0.25,
+        metalness: 0.05,
+        transparent: true,
+        opacity: 0.88
+      });
+      const blob = new THREE.Mesh(new THREE.SphereGeometry(0.13 * scaleFactor, 12, 10), glueMat);
+      blob.scale.set(1.15, 0.9, 1.15);
+      blob.position.copy(pos);
+      bridgeGroup.add(blob);
+      return blob;
+    }
+// ... existing code ... -->
+    // =========================================================================
+    // 5. BUILD THE EXACT PHYSICAL BRIDGE MODEL FROM PHOTOGRAPHS
+    // =========================================================================
+    function buildBridgeModel() {
+      const woodMat = createBambooMaterial(0xdcb884);
+      const threadMat = createThreadMaterial(0xf8fafc);
+
+      // Exact Proportions matching all 3 uploaded photographs
+      const halfWidth = 1.15;         // Bridge width Z: -1.15 to +1.15
+      const towerX = 7.2;             // Left & right portal tower plane X = ±7.2
+      const colPairSpacing = 0.22;    // Paired front/back vertical wooden columns spaced along X
+      const towerHeight = 6.5;        // Top cap of towers at Y = 6.5
+      const deckY = 1.65;             // Bridge deck crossbar height Y = 1.65
+      const stayBaseX = 11.6;         // Outboard anchor base X = ±11.6
+      const midAttachY = 4.45;        // Mid-tower node where outboard props attach
+      const lowerMidY = 3.15;         // Lower-intermediate tower crossbar height
+
+      // Central Apex Joint coordinates (where inboard inclined sticks meet)
+      const apexX = 0.0;
+      const apexY = 5.05;
+
+      // -----------------------------------------------------------------------
+      // A. TWO END TOWER PORTAL FRAMES (LEFT & RIGHT)
+      // -----------------------------------------------------------------------
+      [-1, 1].forEach((sideSign) => {
+        const tx = sideSign * towerX;
+        const xA = tx - colPairSpacing * 0.5;
+        const xB = tx + colPairSpacing * 0.5;
+
+        // Paired vertical wooden columns on front (+Z) and back (-Z) extending below deck to tabletop
+        [-halfWidth, halfWidth].forEach((lz) => {
+          const pBotA = new THREE.Vector3(xA, 0.05, lz);
+          const pTopA = new THREE.Vector3(xA, towerHeight, lz);
+          const pBotB = new THREE.Vector3(xB, 0.05, lz);
+          const pTopB = new THREE.Vector3(xB, towerHeight, lz);
+
+          addStrutBetween(pBotA, pTopA, 0.068, woodMat, 'towers');
+          addStrutBetween(pBotB, pTopB, 0.068, woodMat, 'towers');
+
+          // Dense white zigzag thread lacing wrapping vertically along the paired columns
+          addZigzagThreadWrap(
+            new THREE.Vector3(tx, 0.35, lz),
+            new THREE.Vector3(tx, towerHeight - 0.1, lz),
+            26, colPairSpacing * 0.72, threadMat, 'towers'
+          );
+        });
+
+        // Four horizontal wooden crossbars connecting front and back columns:
+        // 1. Deck level, 2. Lower intermediate, 3. Upper intermediate, 4. Top cap
+        const levels = [deckY - 0.06, lowerMidY, midAttachY, towerHeight - 0.08];
+        levels.forEach((ly) => {
+          const pFront = new THREE.Vector3(tx, ly, halfWidth);
+          const pBack = new THREE.Vector3(tx, ly, -halfWidth);
+          addStrutBetween(pFront, pBack, 0.066, woodMat, 'towers');
+
+          // Heavy hot-glue joints at every crossbar-to-column node
+          addHotGlueJoint(pFront, 1.35);
+          addHotGlueJoint(pBack, 1.35);
+        });
+
+        // Diagonal wooden X / zigzag bracing sticks between horizontal crossbars inside portal frame
+        // Bay 1: Deck crossbar to lower intermediate crossbar
+        addStrutBetween(
+          new THREE.Vector3(tx, deckY - 0.06, halfWidth),
+          new THREE.Vector3(tx, lowerMidY, -halfWidth),
+          0.054, woodMat, 'towers'
+        );
+        // Bay 2: Lower intermediate crossbar to upper intermediate crossbar
+        addStrutBetween(
+          new THREE.Vector3(tx, lowerMidY, -halfWidth),
+          new THREE.Vector3(tx, midAttachY, halfWidth),
+          0.054, woodMat, 'towers'
+        );
+        // Bay 3: Upper intermediate crossbar to top cap (X-brace)
+        addStrutBetween(
+          new THREE.Vector3(tx, midAttachY, halfWidth),
+          new THREE.Vector3(tx, towerHeight - 0.08, -halfWidth),
+          0.054, woodMat, 'towers'
+        );
+        addStrutBetween(
+          new THREE.Vector3(tx, midAttachY, -halfWidth),
+          new THREE.Vector3(tx, towerHeight - 0.08, halfWidth),
+          0.050, woodMat, 'towers'
+        );
+
+        // ---------------------------------------------------------------------
+        // B. OUTBOARD INCLINED ANCHOR PROPS & STAYS (LEFT & RIGHT ENDS)
+        // ---------------------------------------------------------------------
+        const outerBaseX = sideSign * stayBaseX;
+
+        [-halfWidth, halfWidth].forEach((zFace) => {
+          // Paired inclined wooden anchor struts from mid-tower node (midAttachY) to tabletop base
+          const propTop1 = new THREE.Vector3(tx + sideSign * 0.1, midAttachY, zFace);
+          const propBot1 = new THREE.Vector3(outerBaseX, 0.06, zFace);
+          addStrutBetween(propTop1, propBot1, 0.062, woodMat, 'backStays');
+
+          const propTop2 = new THREE.Vector3(tx + sideSign * 0.1, midAttachY - 0.34, zFace);
+          const propBot2 = new THREE.Vector3(outerBaseX - sideSign * 0.42, 0.06, zFace);
+          addStrutBetween(propTop2, propBot2, 0.056, woodMat, 'backStays');
+
+          // White thread lacing wrapping along the paired outboard anchor struts
+          const rungs = 12;
+          for (let r = 1; r < rungs; r++) {
+            const t = r / rungs;
+            const ptA = new THREE.Vector3().lerpVectors(propTop1, propBot1, t);
+            const ptB = new THREE.Vector3().lerpVectors(propTop2, propBot2, t);
+            addStrutBetween(ptA, ptB, 0.018, threadMat, 'backStays');
+          }
+
+          // Horizontal wooden tie stick at deck level extending outward to the anchor prop
+          const deckOutPt = new THREE.Vector3().lerpVectors(propTop1, propBot1, (midAttachY - deckY) / (midAttachY - 0.06));
+          addStrutBetween(
+            new THREE.Vector3(tx, deckY, zFace),
+            deckOutPt,
+            0.056, woodMat, 'backStays'
+          );
+          addHotGlueJoint(deckOutPt, 0.95);
+
+          // Upper white tension anchor thread running from tower top cap down to outer base
+          const peakPt = new THREE.Vector3(tx, towerHeight - 0.06, zFace);
+          addStrutBetween(peakPt, propBot1, 0.024, threadMat, 'backStays');
+
+          // Lower horizontal anchor tie thread from outer base back to tower leg
+          addStrutBetween(propBot1, new THREE.Vector3(tx, 0.65, zFace), 0.022, threadMat, 'backStays');
+        });
+
+        // Transverse horizontal wooden tie bar between front and back outboard anchor bases
+        addStrutBetween(
+          new THREE.Vector3(outerBaseX, 0.12, -halfWidth),
+          new THREE.Vector3(outerBaseX, 0.12, halfWidth),
+          0.054, woodMat, 'backStays'
+        );
+      });
+
+      // -----------------------------------------------------------------------
+      // C. CONTINUOUS WHITE BRIDGE DECK WITH LONGITUDINAL STRINGERS & CROSS-TIES
+      // -----------------------------------------------------------------------
+      const deckLength = towerX * 2 + 0.6;
+      const deckWidth = halfWidth * 2 - 0.14;
+      const deckThickness = 0.07;
+
+      // Subdivided geometry so we can smoothly deflect the deck under live load
+      const deckGeo = new THREE.BoxGeometry(deckLength, deckThickness, deckWidth, 56, 1, 4);
+      const deckMat = new THREE.MeshStandardMaterial({
+        color: 0xf8fafc,
+        roughness: 0.45,
+        metalness: 0.03
+      });
+      deckMesh = new THREE.Mesh(deckGeo, deckMat);
+      deckMesh.position.set(0, deckY, 0);
+      deckMesh.castShadow = true;
+      deckMesh.receiveShadow = true;
+      deckMesh.userData.category = 'deck';
+      bridgeGroup.add(deckMesh);
+      categoryMeshes.deck.push(deckMesh);
+
+      // Longitudinal edge stringer threads along front and back edges of the deck
+      [-halfWidth + 0.05, halfWidth - 0.05].forEach((ez) => {
+        addStrutBetween(
+          new THREE.Vector3(-towerX, deckY - 0.02, ez),
+          new THREE.Vector3(towerX, deckY - 0.02, ez),
+          0.02, threadMat, 'deck'
+        );
+      });
+
+      // Save undeformed deck vertex Y positions for real-time load deflection
+      const posAttr = deckMesh.geometry.attributes.position;
+      deckBaseVertices = new Float32Array(posAttr.array.length);
+      deckBaseVertices.set(posAttr.array);
+
+      // -----------------------------------------------------------------------
+      // D. MAIN INBOARD INCLINED SUPPORT STICKS (A-FRAME / ARCH-LIKE RAKERS)
+      // -----------------------------------------------------------------------
+      const rakerStartY = deckY + 0.12;
+
+      [-halfWidth, halfWidth].forEach((zFace) => {
+        // Left inboard inclined stick rising from left lower tower node to central apex
+        const leftStart = new THREE.Vector3(-towerX, rakerStartY, zFace);
+        const leftApex = new THREE.Vector3(apexX, apexY, zFace);
+        addStrutBetween(leftStart, leftApex, 0.068, woodMat, 'inclinedSticks');
+
+        // Right inboard inclined stick rising from right lower tower node to central apex
+        const rightStart = new THREE.Vector3(towerX, rakerStartY, zFace);
+        const rightApex = new THREE.Vector3(apexX, apexY, zFace);
+        addStrutBetween(rightStart, rightApex, 0.068, woodMat, 'inclinedSticks');
+
+        // Secondary lower inclined wooden braces/strings beneath the main rakers on left & right haunches
+        const leftLowerBraceStart = new THREE.Vector3(-towerX, deckY + 0.72, zFace);
+        const leftLowerBraceEnd = new THREE.Vector3(-3.3, 3.25, zFace);
+        addStrutBetween(leftLowerBraceStart, leftLowerBraceEnd, 0.048, woodMat, 'inclinedSticks');
+
+        const rightLowerBraceStart = new THREE.Vector3(towerX, deckY + 0.72, zFace);
+        const rightLowerBraceEnd = new THREE.Vector3(3.3, 3.25, zFace);
+        addStrutBetween(rightLowerBraceStart, rightLowerBraceEnd, 0.048, woodMat, 'inclinedSticks');
+
+        // Heavy hot-glue joint at the central apex node
+        addHotGlueJoint(new THREE.Vector3(apexX, apexY, zFace), 1.45);
+      });
+
+      // Central horizontal wooden apex crossbar connecting front and back apex nodes
+      addStrutBetween(
+        new THREE.Vector3(apexX, apexY, -halfWidth - 0.16),
+        new THREE.Vector3(apexX, apexY, halfWidth + 0.16),
+        0.072, woodMat, 'inclinedSticks'
+      );
+
+      // -----------------------------------------------------------------------
+      // E. TOP TENSION THREAD LINE (SHALLOW V FROM TOWER CAPS TO APEX CROSSBAR)
+      // -----------------------------------------------------------------------
+      [-halfWidth, halfWidth].forEach((zFace) => {
+        const leftPeak = new THREE.Vector3(-towerX, towerHeight - 0.08, zFace);
+        const centerApex = new THREE.Vector3(apexX, apexY, zFace);
+        const rightPeak = new THREE.Vector3(towerX, towerHeight - 0.08, zFace);
+
+        // Left & right shallow-V tension threads pulling inward and upward on central apex
+        addStrutBetween(leftPeak, centerApex, 0.028, threadMat, 'tensionLine');
+        addStrutBetween(centerApex, rightPeak, 0.028, threadMat, 'tensionLine');
+      });
+
+      // -----------------------------------------------------------------------
+      // F. VERTICAL THREAD HANGERS (5 STATIONS PER HALF-SPAN) & OVERHEAD PLAN LACING
+      // -----------------------------------------------------------------------
+      // 5 vertical hanger stations on the left half-span and 5 on the right half-span
+      const leftStationsX  = [-5.8, -4.45, -3.1, -1.75, -0.45];
+      const rightStationsX = [0.45, 1.75, 3.1, 4.45, 5.8];
+      const allStationsX = [...leftStationsX, ...rightStationsX];
+
+      // Helper to compute exact Y coordinate along the main inclined raker at any X
+      function getRakerY(xPos) {
+        const t = (towerX - Math.abs(xPos)) / (towerX - apexX);
+        return rakerStartY + t * (apexY - rakerStartY);
+      }
+
+      allStationsX.forEach((hx) => {
+        const topY = getRakerY(hx);
+
+        [-halfWidth, halfWidth].forEach((zFace) => {
+          const zDeckEdge = zFace > 0 ? halfWidth - 0.05 : -halfWidth + 0.05;
+          const topPt = new THREE.Vector3(hx, topY, zFace);
+          const botPt = new THREE.Vector3(hx, deckY, zDeckEdge);
+
+          const hangerMesh = addStrutBetween(topPt, botPt, 0.021, threadMat, 'hangers');
+          addHotGlueJoint(topPt, 0.5);
+
+          dynamicHangers.push({
+            mesh: hangerMesh,
+            topPos: topPt.clone(),
+            bottomBasePos: botPt.clone()
+          });
+        });
+
+        // Overhead horizontal transverse white thread tie connecting front & back inclined sticks at every hanger station
+        addStrutBetween(
+          new THREE.Vector3(hx, topY, -halfWidth),
+          new THREE.Vector3(hx, topY, halfWidth),
+          0.02, threadMat, 'hangers'
+        );
+
+        // Under-deck transverse white thread cross-tie connecting front & back deck edges
+        addStrutBetween(
+          new THREE.Vector3(hx, deckY - 0.03, -halfWidth + 0.05),
+          new THREE.Vector3(hx, deckY - 0.03, halfWidth - 0.05),
+          0.018, threadMat, 'deck'
+        );
+      });
+
+      // Diagonal zigzag white thread lacing across the overhead plan bays (preventing lateral buckling)
+      [leftStationsX, rightStationsX].forEach((sideStations) => {
+        for (let i = 0; i < sideStations.length - 1; i++) {
+          const x1 = sideStations[i];
+          const x2 = sideStations[i + 1];
+          const y1 = getRakerY(x1);
+          const y2 = getRakerY(x2);
+
+          // Alternate diagonal direction bay-by-bay to form continuous overhead zigzag lacing
+          if (i % 2 === 0) {
+            addStrutBetween(
+              new THREE.Vector3(x1, y1, -halfWidth),
+              new THREE.Vector3(x2, y2, halfWidth),
+              0.019, threadMat, 'hangers'
+            );
+          } else {
+            addStrutBetween(
+              new THREE.Vector3(x1, y1, halfWidth),
+              new THREE.Vector3(x2, y2, -halfWidth),
+              0.019, threadMat, 'hangers'
+            );
+          }
+        }
+      });
+    }
+
+    // =========================================================================
+    // 6. BUILD 3D LOAD-TRANSFER FORCE ARROWS (FOR LOAD-TRANSFER MODE)
+    // =========================================================================
+    function create3DArrow(origin, direction, length, colorHex, type) {
+      const group = new THREE.Group();
+      const dirNorm = direction.clone().normalize();
+
+      const shaftLen = Math.max(0.2, length * 0.72);
+      const headLen = Math.max(0.18, length * 0.28);
+
+      const mat = new THREE.MeshStandardMaterial({
+        color: colorHex,
+        emissive: colorHex,
+        emissiveIntensity: 0.35,
+        roughness: 0.3
+      });
+
+      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, shaftLen, 12), mat);
+      shaft.position.y = shaftLen * 0.5;
+      group.add(shaft);
+
+      const head = new THREE.Mesh(new THREE.ConeGeometry(0.14, headLen, 14), mat);
+      head.position.y = shaftLen + headLen * 0.5;
+      group.add(head);
+
+      group.position.copy(origin);
+      group.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dirNorm);
+      forceArrowsGroup.add(group);
+
+      dynamicArrows.push({ group, baseScale: 1.0, type });
+      return group;
+    }
+
+    function buildForceArrows() {
+      const zFront = 1.42; // Offset slightly in front of front plane for crisp legibility
+
+      // 1. Downward Gravity Loads on Bridge Deck (Purple/Red)
+      [-4.8, -3.0, -1.2, 1.2, 3.0, 4.8].forEach((x) => {
+        create3DArrow(
+          new THREE.Vector3(x, 2.55, zFront),
+          new THREE.Vector3(0, -1, 0),
+          0.75, 0xa855f7, 'gravity'
+        );
+      });
+
+      // 2. Upward Tension Arrows along Vertical Hangers (Blue)
+      [-4.45, -3.1, -1.75, -0.45, 0.45, 1.75, 3.1, 4.45].forEach((x) => {
+        create3DArrow(
+          new THREE.Vector3(x, 2.35, zFront),
+          new THREE.Vector3(0, 1, 0),
+          0.95, 0x3b82f6, 'tension'
+        );
+      });
+
+      // 3. Tensile Pull Arrows along Top Tension Line (Blue)
+      create3DArrow(new THREE.Vector3(-2.4, 5.55, zFront), new THREE.Vector3(-7.2, 1.45, 0), 1.35, 0x2563eb, 'tension');
+      create3DArrow(new THREE.Vector3(-4.8, 6.02, zFront), new THREE.Vector3(7.2, -1.45, 0), 1.35, 0x2563eb, 'tension');
+      create3DArrow(new THREE.Vector3(2.4, 5.55, zFront), new THREE.Vector3(7.2, 1.45, 0), 1.35, 0x2563eb, 'tension');
+      create3DArrow(new THREE.Vector3(4.8, 6.02, zFront), new THREE.Vector3(-7.2, -1.45, 0), 1.35, 0x2563eb, 'tension');
+
+      // 4. Compression Arrows along Inboard Inclined Support Sticks (Emerald Green)
+      create3DArrow(new THREE.Vector3(-2.3, 4.15, zFront), new THREE.Vector3(-7.2, -3.28, 0), 1.35, 0x10b981, 'compression');
+      create3DArrow(new THREE.Vector3(-5.0, 2.85, zFront), new THREE.Vector3(7.2, 3.28, 0), 1.35, 0x10b981, 'compression');
+      create3DArrow(new THREE.Vector3(2.3, 4.15, zFront), new THREE.Vector3(7.2, -3.28, 0), 1.35, 0x10b981, 'compression');
+      create3DArrow(new THREE.Vector3(5.0, 2.85, zFront), new THREE.Vector3(-7.2, 3.28, 0), 1.35, 0x10b981, 'compression');
+
+      // 5. Outboard Anchor Stay Tension Arrows (Sky Blue)
+      create3DArrow(new THREE.Vector3(-9.5, 4.1, zFront), new THREE.Vector3(-4.4, -6.4, 0), 1.4, 0x38bdf8, 'tension');
+      create3DArrow(new THREE.Vector3(9.5, 4.1, zFront), new THREE.Vector3(4.4, -6.4, 0), 1.4, 0x38bdf8, 'tension');
+
+      // 6. Tower Column Compression & Base Reactions (Amber Orange)
+      [-7.2, 7.2].forEach((tx) => {
+        create3DArrow(new THREE.Vector3(tx, 4.9, zFront), new THREE.Vector3(0, -1, 0), 1.0, 0xf59e0b, 'compression');
+        create3DArrow(new THREE.Vector3(tx, 2.7, zFront), new THREE.Vector3(0, -1, 0), 1.0, 0xf59e0b, 'compression');
+        create3DArrow(new THREE.Vector3(tx, 0.1, zFront + 0.25), new THREE.Vector3(0, 1, 0), 0.9, 0xf97316, 'reaction');
+      });
+    }
+
+    // =========================================================================
+    // 7. REAL-TIME DECK DEFLECTION & MATERIAL STATE UPDATES
+    // =========================================================================
+    function updateDeckDeflection() {
+      if (!deckMesh || !deckBaseVertices) return;
+
+      const posAttr = deckMesh.geometry.attributes.position;
+      const arr = posAttr.array;
+      const spanHalf = 7.2;
+      const maxSag = 0.24 * loadFactor; // Subtle, realistic visual sag under load
+
+      for (let i = 0; i < arr.length; i += 3) {
+        const vx = deckBaseVertices[i];
+        const vy = deckBaseVertices[i + 1];
+
+        if (Math.abs(vx) < spanHalf) {
+          const normX = vx / spanHalf;
+          const sag = maxSag * Math.cos(normX * Math.PI * 0.5);
+          arr[i + 1] = vy - sag;
+        } else {
+          arr[i + 1] = vy;
+        }
+      }
+      posAttr.needsUpdate = true;
+      deckMesh.geometry.computeVertexNormals();
+
+      // Update vertical hanger bottom endpoints so they remain attached to the deflecting deck
+      dynamicHangers.forEach((h) => {
+        const hx = h.bottomBasePos.x;
+        const normX = Math.min(1, Math.abs(hx) / spanHalf);
+        const sag = maxSag * Math.cos(normX * Math.PI * 0.5);
+
+        const newBot = h.bottomBasePos.clone();
+        newBot.y -= sag;
+
+        const dir = new THREE.Vector3().subVectors(newBot, h.topPos);
+        const len = dir.length();
+        h.mesh.position.copy(h.topPos).add(newBot).multiplyScalar(0.5);
+        h.mesh.scale.set(1, len / h.mesh.geometry.parameters.height, 1);
+      });
+
+      // Scale 3D force arrows proportionally to load slider
+      const arrowScale = 0.65 + loadFactor * 0.7;
+      dynamicArrows.forEach((a) => {
+        a.group.scale.set(arrowScale, arrowScale, arrowScale);
+      });
+    }
+
+    function updateMemberVisuals() {
+      Object.keys(MEMBER_INFO).forEach((cat) => {
+        const info = MEMBER_INFO[cat];
+        const meshes = categoryMeshes[cat] || [];
+        const isHighlighted = (selectedCategory === cat || hoveredCategory === cat);
+
+        meshes.forEach((m) => {
+          const baseHex = isForceMode ? info.forceColor : info.realisticColor;
+          m.material.color.setHex(baseHex);
+
+          if (isHighlighted) {
+            m.material.emissive.setHex(isForceMode ? info.forceColor : 0xf59e0b);
+            m.material.emissiveIntensity = 0.55;
+          } else if (isForceMode) {
+            m.material.emissive.setHex(info.forceColor);
+            m.material.emissiveIntensity = 0.22;
+          } else {
+            m.material.emissive.setHex(0x000000);
+            m.material.emissiveIntensity = 0.0;
+          }
+        });
+      });
+    }
+
+    // =========================================================================
+    // 8. RAYCASTING FOR MEMBER SELECTION & HOVER INSPECTION
+    // =========================================================================
+    function setupInteraction() {
+      const raycaster = new THREE.Raycaster();
+      const pointer = new THREE.Vector2();
+      let pointerDownPos = { x: 0, y: 0 };
+
+      const domEl = renderer.domElement;
+
+      domEl.addEventListener('pointerdown', (e) => {
+        pointerDownPos = { x: e.clientX, y: e.clientY };
+      });
+
+      domEl.addEventListener('pointermove', (e) => {
+        pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
+        pointer.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+        raycaster.setFromCamera(pointer, camera);
+        const intersects = raycaster.intersectObjects(bridgeGroup.children, false);
+
+        let foundCat = null;
+        for (let i = 0; i < intersects.length; i++) {
+          const cat = intersects[i].object.userData.category;
+          if (cat && MEMBER_INFO[cat]) {
+            foundCat = cat;
+            break;
+          }
+        }
+
+        if (hoveredCategory !== foundCat) {
+          hoveredCategory = foundCat;
+          domEl.style.cursor = foundCat ? 'pointer' : 'grab';
+          updateMemberVisuals();
+          if (!selectedCategory && foundCat) {
+            populateInspector(foundCat, false);
+          }
+        }
+      });
+
+      domEl.addEventListener('pointerup', (e) => {
+        const dist = Math.hypot(e.clientX - pointerDownPos.x, e.clientY - pointerDownPos.y);
+        // Only treat as a click if pointer barely moved (not an orbit drag)
+        if (dist < 6) {
+          pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
+          pointer.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+          raycaster.setFromCamera(pointer, camera);
+          const intersects = raycaster.intersectObjects(bridgeGroup.children, false);
+
+          let clickedCat = null;
+          for (let i = 0; i < intersects.length; i++) {
+            const cat = intersects[i].object.userData.category;
+            if (cat && MEMBER_INFO[cat]) {
+              clickedCat = cat;
+              break;
+            }
+          }
+
+          if (clickedCat) {
+            selectedCategory = clickedCat;
+            populateInspector(clickedCat, true);
+            document.getElementById('btn-clear-selection').classList.remove('hidden');
+          } else {
+            clearSelection();
+          }
+          updateMemberVisuals();
+        }
+      });
+    }
+
+    function populateInspector(cat, isPinned) {
+      const info = MEMBER_INFO[cat];
+      if (!info) return;
+
+      document.getElementById('insp-badge').textContent = isPinned ? `Pinned • ${info.badge}` : info.badge;
+      document.getElementById('insp-title').textContent = info.title;
+      document.getElementById('insp-action').textContent = info.action;
+      document.getElementById('insp-desc').textContent = info.desc;
+    }
+
+    function clearSelection() {
+      selectedCategory = null;
+      document.getElementById('btn-clear-selection').classList.add('hidden');
+      document.getElementById('insp-badge').textContent = 'Interactive Inspector';
+      document.getElementById('insp-title').textContent = 'Click Any Bridge Member';
+      document.getElementById('insp-action').textContent = 'Action: Hover or tap a component in 3D';
+      document.getElementById('insp-desc').textContent =
+        'Drag to rotate 360°, scroll to zoom, or right-click drag to pan. Click on the deck, vertical hangers, top tension line, inclined sticks, towers, or outer anchorage stays to inspect their structural role.';
+      updateMemberVisuals();
+    }
+
+    // =========================================================================
+    // 9. CAMERA PRESETS & UI CONTROLS
+    // =========================================================================
+    const CAMERA_PRESETS = {
+      perspective: { pos: new THREE.Vector3(14.5, 8.2, 16.5), target: new THREE.Vector3(0, 3.1, 0) },
+      side:        { pos: new THREE.Vector3(0, 3.6, 22.0),    target: new THREE.Vector3(0, 3.2, 0) },
+      top:         { pos: new THREE.Vector3(0, 23.5, 0.01),   target: new THREE.Vector3(0, 2.2, 0) },
+      tower:       { pos: new THREE.Vector3(17.8, 4.6, 0.0),    target: new THREE.Vector3(6.8, 3.2, 0) },
+      joint:       { pos: new THREE.Vector3(2.8, 6.2, 5.2),     target: new THREE.Vector3(0, 4.8, 0) }
+    };
+
+    function flyToCamera(presetKey) {
+      const preset = CAMERA_PRESETS[presetKey];
+      if (!preset) return;
+
+      controls.autoRotate = false;
+      updateAutoRotateBtn();
+
+      cameraAnim = {
+        startPos: camera.position.clone(),
+        endPos: preset.pos.clone(),
+        startTarget: controls.target.clone(),
+        endTarget: preset.target.clone(),
+        progress: 0
+      };
+
+      // Highlight active camera preset pill
+      document.querySelectorAll('.cam-btn').forEach((btn) => {
+        if (btn.dataset.view === presetKey) {
+          btn.classList.add('bg-slate-800', 'text-amber-400', 'border', 'border-amber-500/40');
+          btn.classList.remove('text-slate-300');
+        } else {
+          btn.classList.remove('bg-slate-800', 'text-amber-400', 'border', 'border-amber-500/40');
+          btn.classList.add('text-slate-300');
+        }
+      });
+    }
+
+    function updateAutoRotateBtn() {
+      const btn = document.getElementById('btn-autorotate');
+      if (controls.autoRotate) {
+        btn.classList.add('bg-amber-500', 'text-slate-950');
+        btn.classList.remove('text-slate-300');
+      } else {
+        btn.classList.remove('bg-amber-500', 'text-slate-950');
+        btn.classList.add('text-slate-300');
+      }
+    }
+
+    function setupUI() {
+      const btnRealistic = document.getElementById('btn-mode-realistic');
+      const btnForce = document.getElementById('btn-mode-force');
+      const legendEl = document.getElementById('force-legend');
+
+      btnRealistic.addEventListener('click', () => {
+        isForceMode = false;
+        forceArrowsGroup.visible = false;
+
+        btnRealistic.className = 'btn-pill px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-2 bg-amber-500 text-slate-950 shadow';
+        btnForce.className = 'btn-pill px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-2 text-slate-300 hover:text-white hover:bg-slate-800/70';
+
+        legendEl.classList.add('opacity-0', 'pointer-events-none', '-translate-x-4');
+        updateMemberVisuals();
+      });
+
+      btnForce.addEventListener('click', () => {
+        isForceMode = true;
+        forceArrowsGroup.visible = true;
+
+        btnForce.className = 'btn-pill px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-2 bg-blue-600 text-white shadow';
+        btnRealistic.className = 'btn-pill px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-2 text-slate-300 hover:text-white hover:bg-slate-800/70';
+
+        legendEl.classList.remove('opacity-0', 'pointer-events-none', '-translate-x-4');
+        updateMemberVisuals();
+      });
+
+      // Deck Load Slider
+      const slider = document.getElementById('load-slider');
+      const loadVal = document.getElementById('load-val');
+      slider.addEventListener('input', (e) => {
+        const val = parseInt(e.target.value, 10);
+        loadVal.textContent = `${val}%`;
+        loadFactor = val / 100;
+        updateDeckDeflection();
+      });
+
+      // Camera Preset Buttons
+      document.querySelectorAll('.cam-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          flyToCamera(btn.dataset.view);
+        });
+      });
+
+      // Auto-Orbit Toggle
+      document.getElementById('btn-autorotate').addEventListener('click', () => {
+        controls.autoRotate = !controls.autoRotate;
+        controls.autoRotateSpeed = 1.4;
+        updateAutoRotateBtn();
+      });
+
+      // Reset Camera
+      document.getElementById('btn-reset').addEventListener('click', () => {
+        clearSelection();
+        flyToCamera('perspective');
+      });
+
+      // Clear Selection Button
+      document.getElementById('btn-clear-selection').addEventListener('click', clearSelection);
+    }
+
+    function onWindowResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    // =========================================================================
+    // 10. ANIMATION LOOP (STARTED ON WINDOW ONLOAD)
+    // =========================================================================
+    function animate() {
+      requestAnimationFrame(animate);
+
+      // Smoothly interpolate camera presets
+      if (cameraAnim) {
+        cameraAnim.progress += 0.045;
+        const t = Math.min(1, cameraAnim.progress);
+        // Ease-out cubic
+        const ease = 1 - Math.pow(1 - t, 3);
+
+        camera.position.lerpVectors(cameraAnim.startPos, cameraAnim.endPos, ease);
+        controls.target.lerpVectors(cameraAnim.startTarget, cameraAnim.endTarget, ease);
+
+        if (t >= 1) {
+          cameraAnim = null;
+        }
+      }
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    window.onload = function () {
+      initScene();
+      updateDeckDeflection();
+      animate();
+    };
+  </script>
+</body>
+</html>

@@ -129,7 +129,15 @@
         <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82zM7 7h.01" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
-        <span id="labels-mode-text">Tags: All (10)</span>
+        <span id="labels-mode-text">Tags: All (11)</span>
+      </button>
+
+      <!-- Live Traffic Toggle Button -->
+      <button id="btn-traffic" class="px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 bg-emerald-500/25 text-emerald-300 border border-emerald-400/50 transition">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M5 17h14M6 17l1.5-6h9L18 17M7.5 11l1.5-4h6l1.5 4M7 17v2M17 17v2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span id="traffic-btn-text">Live Traffic: ON</span>
       </button>
 
       <!-- Load Path & Live Traffic Force Vectors Toggle -->
@@ -151,7 +159,7 @@
   <aside id="inspector-panel" class="fixed top-20 right-3 bottom-20 sm:right-4 w-[calc(100vw-1.5rem)] sm:w-80 lg:w-88 z-20 glass-panel rounded-2xl flex flex-col overflow-hidden transition-transform duration-300 translate-x-0">
     <!-- Panel Header -->
     <div class="px-4 py-3 border-b border-slate-700/60 flex items-center justify-between">
-      <span class="text-xs font-semibold uppercase tracking-wider text-slate-300 mono">Structural Elements (10)</span>
+      <span class="text-xs font-semibold uppercase tracking-wider text-slate-300 mono">Structural Elements (11)</span>
       <button id="btn-reset-selection" class="text-[11px] text-sky-400 hover:text-sky-300 font-medium">Reset View</button>
     </div>
 
@@ -174,6 +182,31 @@
       <span class="flex items-center gap-1 text-rose-300"><span class="w-2 h-2 rounded-full bg-rose-500"></span>Compression</span>
       <span class="flex items-center gap-1 text-cyan-300"><span class="w-2 h-2 rounded-full bg-cyan-400"></span>Tension</span>
       <span class="flex items-center gap-1 text-emerald-300"><span class="w-2 h-2 rounded-full bg-emerald-400"></span>Reaction</span>
+    </div>
+
+    <!-- Live Moving Vehicle Telemetry & Speed Control -->
+    <div class="px-4 py-2.5 border-b border-slate-700/60 bg-slate-900/45 space-y-2">
+      <div class="flex items-center justify-between">
+        <span class="text-[10px] uppercase tracking-wider font-semibold text-emerald-400 mono flex items-center gap-1.5">
+          <span id="live-pulse-dot" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          Live Traffic Telemetry
+        </span>
+        <span id="traffic-speed-val" class="text-[11px] mono text-slate-300 font-semibold">1.0× Speed</span>
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <div class="rounded-lg bg-slate-950/75 border border-slate-700/60 px-2.5 py-1.5">
+          <div class="text-[9px] uppercase text-slate-400 mono">Moving Live Load</div>
+          <div id="hud-live-load" class="text-xs font-bold text-amber-300 mono mt-0.5">0.0 kN</div>
+        </div>
+        <div class="rounded-lg bg-slate-950/75 border border-slate-700/60 px-2.5 py-1.5">
+          <div class="text-[9px] uppercase text-slate-400 mono">Mid-Span Moment</div>
+          <div id="hud-moment" class="text-xs font-bold text-sky-300 mono mt-0.5">0.0 kN·m</div>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 pt-0.5">
+        <span class="text-[10px] text-slate-400 mono shrink-0">Traffic Speed:</span>
+        <input id="traffic-speed-slider" type="range" min="0" max="250" value="100" class="w-full" />
+      </div>
     </div>
 
     <!-- Exploded Assembly View Slider -->
@@ -201,6 +234,7 @@
       <button data-view="iso" class="cam-btn px-2.5 py-1.5 rounded-lg text-xs font-medium bg-sky-500/25 text-sky-300 border border-sky-400/40 transition whitespace-nowrap">3/4 Isometric</button>
       <button data-view="side" class="cam-btn px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-transparent transition whitespace-nowrap">Side Elevation</button>
       <button data-view="portal" class="cam-btn px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-transparent transition whitespace-nowrap">Through-Portal End</button>
+      <button data-view="driver" class="cam-btn px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-transparent transition whitespace-nowrap">Driver / Roadway</button>
       <button data-view="top" class="cam-btn px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-transparent transition whitespace-nowrap">Top Plan</button>
     </div>
 
@@ -389,6 +423,21 @@
         anchorLocal: new THREE.Vector3(3.2, 0.36, 1.84),
         labelOffset: new THREE.Vector2(150, 75),
         explodeDir: new THREE.Vector3(0, 0.15, 1.25)
+      },
+      {
+        id: 'roadway_surface',
+        num: 11,
+        name: 'Roadway Deck (Asphalt Wearing Surface)',
+        shortTitle: '11. ROADWAY DECK SURFACE',
+        forceType: 'Wheel Load Distribution & Traction',
+        forceBadgeClass: 'bg-orange-500/20 text-orange-300 border-orange-400/30',
+        badgeColor: '#fb923c',
+        functionText: 'Two-lane asphalt wearing course transferring wheel loads to base slab.',
+        description:
+          'Paved asphalt wearing course laid directly over the white base deck slab inside the battered truss envelope. Features double yellow centerlines, white dashed lane dividers, and edge lines while dispersing concentrated tire contact pressures into the underlying structural slab.',
+        anchorLocal: new THREE.Vector3(-2.1, 0.16, 0.45),
+        labelOffset: new THREE.Vector2(-130, 62),
+        explodeDir: new THREE.Vector3(0, 0.28, 0)
       }
     ];
 
@@ -738,6 +787,91 @@
     });
     registerComponentGroup('bridge_deck', deckGroup);
 
+    // --- GROUP A2: ASPHALT ROADWAY WEARING SURFACE OVER BASE SLAB (TAG #11) ---
+    function createRoadwayTexture() {
+      const canvas = document.createElement('canvas');
+      canvas.width = 2048;
+      canvas.height = 512;
+      const ctx = canvas.getContext('2d');
+
+      // Base dark asphalt fill
+      ctx.fillStyle = '#1f2937';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Fine asphalt aggregate grain noise
+      for (let i = 0; i < 28000; i++) {
+        const x = Math.random() * canvas.width;
+        const y = Math.random() * canvas.height;
+        const shade = 24 + Math.floor(Math.random() * 28);
+        ctx.fillStyle = `rgb(${shade}, ${shade + 4}, ${shade + 10})`;
+        ctx.fillRect(x, y, 2, 2);
+      }
+
+      // Subtle longitudinal tire wear tracks in both lanes
+      const trackGrad1 = ctx.createLinearGradient(0, canvas.height * 0.22, 0, canvas.height * 0.42);
+      trackGrad1.addColorStop(0, 'rgba(15, 23, 42, 0)');
+      trackGrad1.addColorStop(0.5, 'rgba(15, 23, 42, 0.28)');
+      trackGrad1.addColorStop(1, 'rgba(15, 23, 42, 0)');
+      ctx.fillStyle = trackGrad1;
+      ctx.fillRect(0, canvas.height * 0.22, canvas.width, canvas.height * 0.2);
+
+      const trackGrad2 = ctx.createLinearGradient(0, canvas.height * 0.58, 0, canvas.height * 0.78);
+      trackGrad2.addColorStop(0, 'rgba(15, 23, 42, 0)');
+      trackGrad2.addColorStop(0.5, 'rgba(15, 23, 42, 0.28)');
+      trackGrad2.addColorStop(1, 'rgba(15, 23, 42, 0)');
+      ctx.fillStyle = trackGrad2;
+      ctx.fillRect(0, canvas.height * 0.58, canvas.width, canvas.height * 0.2);
+
+      // Solid White Edge Lines (Top & Bottom shoulders)
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillRect(0, 26, canvas.width, 10);
+      ctx.fillRect(0, canvas.height - 36, canvas.width, 10);
+
+      // Double Solid Yellow Center Lane Markings
+      ctx.fillStyle = '#facc15';
+      const midY = canvas.height / 2;
+      ctx.fillRect(0, midY - 12, canvas.width, 8);
+      ctx.fillRect(0, midY + 4, canvas.width, 8);
+
+      // White Dashed Lane Guide Ticks along each lane shoulder edge
+      ctx.fillStyle = 'rgba(248, 250, 252, 0.65)';
+      for (let x = 32; x < canvas.width; x += 128) {
+        ctx.fillRect(x, 62, 54, 4);
+        ctx.fillRect(x, canvas.height - 66, 54, 4);
+      }
+
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      return tex;
+    }
+
+    const roadGroup = new THREE.Group();
+    const ROAD_LEN = DECK_LEN - 0.04;
+    const ROAD_W = (BOT_HALF_Z - 0.22) * 2; // Fits cleanly inside the 10 deck bearing shoes
+    const ROAD_H = 0.026;
+    const ROAD_TOP_Y = DECK_TOP_Y + ROAD_H;
+
+    const roadTexture = createRoadwayTexture();
+    const roadTopMat = new THREE.MeshStandardMaterial({
+      map: roadTexture,
+      roughness: 0.78,
+      metalness: 0.06
+    });
+    const roadSideMat = new THREE.MeshStandardMaterial({
+      color: 0x1e293b,
+      roughness: 0.85,
+      metalness: 0.08
+    });
+
+    const roadMesh = new THREE.Mesh(
+      new THREE.BoxGeometry(ROAD_LEN, ROAD_H, ROAD_W),
+      [roadSideMat, roadSideMat, roadTopMat, roadSideMat, roadSideMat, roadSideMat]
+    );
+    roadMesh.position.set(0, DECK_TOP_Y + ROAD_H / 2, 0);
+    tagSelectable(roadMesh, 'roadway_surface');
+    roadGroup.add(roadMesh);
+    registerComponentGroup('roadway_surface', roadGroup);
+
     // --- GROUP B: SLOTTED PARAPET / EDGE GIRDERS (LEFT & RIGHT) ---
     const parapetGroup = new THREE.Group();
     const PARAPET_H = 0.56;
@@ -945,6 +1079,17 @@
       liveLoadArrows.push(arr);
     });
 
+    // Dynamic Axle Load Vector Marker following primary moving vehicle
+    const dynamicAxleArrow = new THREE.ArrowHelper(
+      new THREE.Vector3(0, -1, 0),
+      new THREE.Vector3(0, 1.35, 0.56),
+      0.78,
+      0xf59e0b,
+      0.24,
+      0.15
+    );
+    scene.add(dynamicAxleArrow);
+
     // 2. Top Chord & Inclined End Post Compression Arrows (Rose Red inward arrows)
     [-1, 1].forEach(side => {
       const zTop = side * TOP_HALF_Z;
@@ -968,6 +1113,125 @@
       // 4. Support Reactions at End Deck Bearing Shoes (Emerald Green Upward Arrows)
       addArrow(new THREE.Vector3(-4.85, -0.55, side * BOT_HALF_Z), new THREE.Vector3(0, 1, 0), 0.52, 0x10b981);
       addArrow(new THREE.Vector3(4.85, -0.55, side * BOT_HALF_Z), new THREE.Vector3(0, 1, 0), 0.52, 0x10b981);
+    });
+
+    // ---------------------------------------------------------------------------
+    // 6B. LIVE MOVING VEHICLE TRAFFIC SYSTEM (CARS & SUVS ON ASPHALT ROADWAY)
+    // ---------------------------------------------------------------------------
+    const trafficGroup = new THREE.Group();
+    scene.add(trafficGroup);
+
+    const vehicles = [];
+    let isTrafficEnabled = true;
+    let trafficSpeedMultiplier = 1.0;
+
+    function createVehicleMesh({ bodyColor, isSUV = false }) {
+      const car = new THREE.Group();
+      const length = isSUV ? 1.38 : 1.24;
+      const width = isSUV ? 0.62 : 0.58;
+      const lowerH = isSUV ? 0.24 : 0.20;
+      const cabinH = isSUV ? 0.22 : 0.18;
+      const cabinLen = isSUV ? 0.86 : 0.66;
+      const wheelR = isSUV ? 0.135 : 0.12;
+
+      const paintMat = new THREE.MeshStandardMaterial({
+        color: bodyColor,
+        roughness: 0.22,
+        metalness: 0.55
+      });
+      const glassMat = new THREE.MeshStandardMaterial({
+        color: 0x0f172a,
+        roughness: 0.12,
+        metalness: 0.85
+      });
+      const tireMat = new THREE.MeshStandardMaterial({
+        color: 0x111827,
+        roughness: 0.85,
+        metalness: 0.1
+      });
+      const rimMat = new THREE.MeshStandardMaterial({
+        color: 0xe2e8f0,
+        roughness: 0.3,
+        metalness: 0.8
+      });
+      const headlightMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
+      const taillightMat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
+
+      // Chassis / Suspension sub-group for subtle vertical bounce
+      const bodyGroup = new THREE.Group();
+      car.add(bodyGroup);
+
+      // Lower chassis body
+      const lowerBody = new THREE.Mesh(new THREE.BoxGeometry(length, lowerH, width), paintMat);
+      lowerBody.position.y = wheelR + lowerH / 2 - 0.02;
+      lowerBody.castShadow = true;
+      lowerBody.receiveShadow = true;
+      bodyGroup.add(lowerBody);
+
+      // Upper cabin
+      const cabin = new THREE.Mesh(new THREE.BoxGeometry(cabinLen, cabinH, width * 0.88), paintMat);
+      cabin.position.set(isSUV ? -0.08 : -0.06, wheelR + lowerH + cabinH / 2 - 0.03, 0);
+      cabin.castShadow = true;
+      bodyGroup.add(cabin);
+
+      // Windshield & Rear Window glass
+      const windshield = new THREE.Mesh(
+        new THREE.BoxGeometry(cabinLen + 0.02, cabinH * 0.72, width * 0.9),
+        glassMat
+      );
+      windshield.position.copy(cabin.position);
+      bodyGroup.add(windshield);
+
+      // Headlights (+X front) & Taillights (-X rear)
+      [-width * 0.32, width * 0.32].forEach(lz => {
+        const hl = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.055, 0.11), headlightMat);
+        hl.position.set(length / 2 + 0.005, wheelR + lowerH * 0.55, lz);
+        bodyGroup.add(hl);
+
+        const tl = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.055, 0.12), taillightMat);
+        tl.position.set(-length / 2 - 0.005, wheelR + lowerH * 0.58, lz);
+        bodyGroup.add(tl);
+      });
+
+      // 4 Spinning Wheels with Alloy Rims
+      const wheels = [];
+      const wheelX = [length * 0.31, -length * 0.31];
+      const wheelZ = [width * 0.48, -width * 0.48];
+      const tireGeo = new THREE.CylinderGeometry(wheelR, wheelR, 0.075, 18);
+      tireGeo.rotateX(Math.PI / 2);
+      const rimGeo = new THREE.CylinderGeometry(wheelR * 0.58, wheelR * 0.58, 0.08, 12);
+      rimGeo.rotateX(Math.PI / 2);
+
+      wheelX.forEach(wx => {
+        wheelZ.forEach(wz => {
+          const wheelPivot = new THREE.Group();
+          wheelPivot.position.set(wx, wheelR, wz);
+          const tire = new THREE.Mesh(tireGeo, tireMat);
+          tire.castShadow = true;
+          const rim = new THREE.Mesh(rimGeo, rimMat);
+          wheelPivot.add(tire, rim);
+          car.add(wheelPivot);
+          wheels.push(wheelPivot);
+        });
+      });
+
+      return { root: car, bodyGroup, wheels, wheelR };
+    }
+
+    // Spawn 4 vehicles across Eastbound (+X, Z = +0.56) and Westbound (-X, Z = -0.56) lanes
+    const vehicleSpecs = [
+      { bodyColor: 0xef4444, isSUV: true, dir: 1, laneZ: 0.56, startX: -3.6, baseSpeed: 2.35, weightKN: 28.5, isPrimary: true },
+      { bodyColor: 0xf59e0b, isSUV: false, dir: 1, laneZ: 0.56, startX: 2.4, baseSpeed: 2.35, weightKN: 18.0, isPrimary: false },
+      { bodyColor: 0x38bdf8, isSUV: false, dir: -1, laneZ: -0.56, startX: 4.1, baseSpeed: 2.65, weightKN: 19.5, isPrimary: false },
+      { bodyColor: 0x10b981, isSUV: true, dir: -1, laneZ: -0.56, startX: -1.8, baseSpeed: 2.65, weightKN: 26.0, isPrimary: false }
+    ];
+
+    vehicleSpecs.forEach(spec => {
+      const built = createVehicleMesh({ bodyColor: spec.bodyColor, isSUV: spec.isSUV });
+      built.root.position.set(spec.startX, ROAD_TOP_Y, spec.laneZ);
+      if (spec.dir < 0) built.root.rotation.y = Math.PI;
+      trafficGroup.add(built.root);
+      vehicles.push({ ...spec, ...built, x: spec.startX });
     });
 
     // ---------------------------------------------------------------------------
@@ -1245,6 +1509,7 @@
       iso: { pos: new THREE.Vector3(-8.8, 5.4, 9.6), target: new THREE.Vector3(0, 1.15, 0) },
       side: { pos: new THREE.Vector3(0.0, 2.1, 12.8), target: new THREE.Vector3(0, 1.25, 0) },
       portal: { pos: new THREE.Vector3(-9.8, 1.85, 0.0), target: new THREE.Vector3(0, 1.25, 0) },
+      driver: { pos: new THREE.Vector3(-6.4, 0.72, 0.56), target: new THREE.Vector3(2.2, 0.78, 0.25) },
       top: { pos: new THREE.Vector3(0.0, 12.6, 2.2), target: new THREE.Vector3(0, 1.0, 0) }
     };
 
@@ -1311,10 +1576,43 @@
           'px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 bg-slate-800/90 text-slate-300 border border-slate-600/50 transition';
       } else {
         tagDisplayMode = 'all';
-        labelsModeText.textContent = 'Tags: All (10)';
+        labelsModeText.textContent = 'Tags: All (11)';
         btnLabels.className =
           'px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 bg-sky-500/25 text-sky-300 border border-sky-400/50 transition';
       }
+    });
+
+    // Live Traffic Toggle & Speed Slider
+    const btnTraffic = document.getElementById('btn-traffic');
+    const trafficBtnText = document.getElementById('traffic-btn-text');
+    const livePulseDot = document.getElementById('live-pulse-dot');
+    const trafficSpeedSlider = document.getElementById('traffic-speed-slider');
+    const trafficSpeedVal = document.getElementById('traffic-speed-val');
+    const hudLiveLoadEl = document.getElementById('hud-live-load');
+    const hudMomentEl = document.getElementById('hud-moment');
+
+    btnTraffic.addEventListener('click', () => {
+      isTrafficEnabled = !isTrafficEnabled;
+      trafficGroup.visible = isTrafficEnabled;
+      dynamicAxleArrow.visible = isTrafficEnabled;
+      if (isTrafficEnabled) {
+        trafficBtnText.textContent = 'Live Traffic: ON';
+        btnTraffic.className =
+          'px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 bg-emerald-500/25 text-emerald-300 border border-emerald-400/50 transition';
+        livePulseDot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse';
+      } else {
+        trafficBtnText.textContent = 'Live Traffic: OFF';
+        btnTraffic.className =
+          'px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 bg-slate-800/90 text-slate-300 border border-slate-600/50 transition';
+        livePulseDot.className = 'w-2 h-2 rounded-full bg-slate-500';
+        hudLiveLoadEl.textContent = '0.0 kN';
+        hudMomentEl.textContent = '0.0 kN·m';
+      }
+    });
+
+    trafficSpeedSlider.addEventListener('input', e => {
+      trafficSpeedMultiplier = Number(e.target.value) / 100;
+      trafficSpeedVal.textContent = `${trafficSpeedMultiplier.toFixed(1)}× Speed`;
     });
 
     // Load Path Toggle
@@ -1367,7 +1665,8 @@
 
     function animate() {
       requestAnimationFrame(animate);
-      const elapsed = clock.getElapsedTime();
+      const dt = Math.min(clock.getDelta(), 0.05);
+      const elapsed = clock.elapsedTime;
 
       if (camAnim) {
         camAnim.progress += 0.045;
@@ -1376,6 +1675,68 @@
         camera.position.lerpVectors(camAnim.startPos, camAnim.endPos, ease);
         controls.target.lerpVectors(camAnim.startTarget, camAnim.endTarget, ease);
         if (t >= 1) camAnim = null;
+      }
+
+      // Live Vehicle Traffic Movement, Wheel Rotation, Suspension Bounce & Telemetry
+      if (isTrafficEnabled) {
+        const spanHalf = DECK_LEN / 2 - 0.65;
+        const roadYOffset = roadGroup.position.y;
+        let activeLoadKN = 0;
+        let midSpanMomentKNm = 0;
+        const L = DECK_LEN;
+
+        vehicles.forEach((v, idx) => {
+          const step = v.dir * v.baseSpeed * trafficSpeedMultiplier * dt;
+          v.x += step;
+          if (v.dir > 0 && v.x > spanHalf) v.x = -spanHalf;
+          if (v.dir < 0 && v.x < -spanHalf) v.x = spanHalf;
+
+          v.root.position.set(v.x, ROAD_TOP_Y + roadYOffset, v.laneZ);
+
+          // Spin wheels proportional to travel distance
+          const angularStep = Math.abs(step) / v.wheelR;
+          v.wheels.forEach(w => {
+            w.rotation.z -= angularStep;
+          });
+
+          // Subtle suspension micro-bounce over deck expansion joints
+          v.bodyGroup.position.y = Math.sin(elapsed * 14 + idx * 2.1) * 0.008 * Math.min(1, trafficSpeedMultiplier);
+
+          // Structural influence line calculation: a = distance from left support
+          const a = Math.max(0, Math.min(L, v.x + L / 2));
+          const b = L - a;
+          activeLoadKN += v.weightKN;
+          // Simply-supported mid-span bending moment influence ordinate
+          const m = a <= L / 2 ? (v.weightKN * a) / 2 : (v.weightKN * b) / 2;
+          midSpanMomentKNm += m;
+
+          // Update dynamic axle load arrow over primary vehicle
+          if (v.isPrimary) {
+            dynamicAxleArrow.position.set(
+              v.x,
+              ROAD_TOP_Y + roadYOffset + 1.32 + Math.sin(elapsed * 6) * 0.04,
+              v.laneZ
+            );
+          }
+        });
+
+        // Subtle dynamic structural stress response in diagonal & vertical web members
+        const loadRatio = Math.min(1, midSpanMomentKNm / 180);
+        if (!selectedComponentId) {
+          ['diagonal_web', 'vertical_post'].forEach(gid => {
+            const grp = componentGroups[gid];
+            if (!grp) return;
+            grp.traverse(child => {
+              if (child.isMesh && child.material && child.material.emissive) {
+                child.material.emissive.setHex(0x0284c7);
+                child.material.emissiveIntensity = loadRatio * 0.18;
+              }
+            });
+          });
+        }
+
+        hudLiveLoadEl.textContent = `${activeLoadKN.toFixed(1)} kN`;
+        hudMomentEl.textContent = `${midSpanMomentKNm.toFixed(1)} kN·m`;
       }
 
       // Subtle live-load vertical pulse when Load Path simulation is active

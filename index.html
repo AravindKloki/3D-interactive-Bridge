@@ -530,20 +530,33 @@
       const anchorFootX = 11.4;
 
       // -----------------------------------------------------------------------
-      // A. END TOWER PORTAL FRAMES (LEFT & RIGHT - SINGLE COLUMNS & ZIGZAG BRACING)
+      // A. END TOWER PORTAL FRAMES (LEFT & RIGHT - CLOSELY PLACED TWIN COLUMNS)
       // -----------------------------------------------------------------------
       [-towerX, towerX].forEach((tx) => {
         const sign = Math.sign(tx);
 
-        // Single vertical bamboo column at each corner (front & back)
+        // Closely placed twin vertical bamboo columns at each corner (front & back)
         [-halfWidth, halfWidth].forEach((tz) => {
-          const pBot = new THREE.Vector3(tx, 0, tz);
-          const pTop = new THREE.Vector3(tx, towerHeight, tz);
-          addStrutBetween(pBot, pTop, 0.06, bambooMat, 'towers');
+          const colOffset = 0.085;
+          [-colOffset, colOffset].forEach((dx) => {
+            const pBot = new THREE.Vector3(tx + dx, 0, tz);
+            const pTop = new THREE.Vector3(tx + dx, towerHeight, tz);
+            addStrutBetween(pBot, pTop, 0.048, bambooMat, 'towers');
+          });
+
+          // Dense white zigzag thread wrapping lacing the closely spaced twin columns together
+          addZigzagThreadWrap(
+            new THREE.Vector3(tx, 0.25, tz),
+            new THREE.Vector3(tx, towerHeight - 0.12, tz),
+            new THREE.Vector3(colOffset + 0.02, 0, 0),
+            22,
+            threadMat,
+            'towers'
+          );
 
           // Rubber/wood support foot pad on tabletop
           const pad = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.14, 0.16, 0.08, 14),
+            new THREE.CylinderGeometry(0.16, 0.18, 0.08, 14),
             new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.7 })
           );
           pad.position.set(tx, 0.04, tz);
@@ -578,17 +591,17 @@
         // B. OUTBOARD ANCHOR PROPS, HORIZONTAL TIES & TENSION STAYS
         // ---------------------------------------------------------------------
         [-halfWidth, halfWidth].forEach((tz) => {
-          const propTop = new THREE.Vector3(tx + sign * 0.25, 4.65, tz);
+          const propTop = new THREE.Vector3(tx, 4.85, tz);
           const propFoot = new THREE.Vector3(sign * anchorFootX, 0.05, tz);
 
-          // Paired inclined outboard anchor bamboo struts
+          // Paired inclined outboard anchor bamboo struts anchored directly into the tower joint
           addStrutBetween(
-            propTop.clone().add(new THREE.Vector3(0, 0.12, 0)),
+            propTop.clone().add(new THREE.Vector3(0, 0.06, 0)),
             propFoot.clone().add(new THREE.Vector3(0, 0.12, 0)),
             0.05, bambooMat, 'backStays'
           );
           addStrutBetween(
-            propTop.clone().add(new THREE.Vector3(0, -0.12, 0)),
+            propTop.clone().add(new THREE.Vector3(0, -0.06, 0)),
             propFoot.clone().add(new THREE.Vector3(0, -0.12, 0)),
             0.05, bambooMat, 'backStays'
           );
@@ -597,19 +610,20 @@
           addZigzagThreadWrap(
             propTop,
             propFoot,
-            new THREE.Vector3(0, 0.14, 0),
+            new THREE.Vector3(0, 0.11, 0),
             11,
             threadMat,
             'backStays'
           );
 
           // Horizontal deck-level wooden tie stick from tower to anchor prop
-          const tieMeet = new THREE.Vector3().lerpVectors(propTop, propFoot, 0.64);
+          const tieMeet = new THREE.Vector3().lerpVectors(propTop, propFoot, 0.66);
           addStrutBetween(
             new THREE.Vector3(tx, deckY, tz),
             tieMeet,
             0.045, bambooMat, 'backStays'
           );
+          addHotGlueJoint(tieMeet, 0.13, 'backStays');
 
           // Upper white tension stay thread from tower cap to anchor foot
           addStrutBetween(
